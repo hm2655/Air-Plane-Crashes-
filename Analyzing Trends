@@ -1,0 +1,67 @@
+library(dplyr)
+library(ggplot2)
+
+# Clearing the space
+rm(list=ls())
+
+# Load data
+airdata<-read.csv("APC.csv", na.strings="")
+
+# View data types
+str(airdata)
+
+# Convert Date to Date Variable 
+airdata$Date<-as.Date(airdata$Date,format="%m/%d/%Y")
+
+# Extract Year from Date 
+airdata$Year<-as.numeric(format(airdata$Date,"%Y"))
+
+# Extract Month from Date
+airdata$Month<-as.numeric(format(airdata$Date,"%m"))
+
+# Extract Day from Date
+airdata$Day<-as.numeric(format(airdata$Date,"%d"))
+
+# Grouping data per Year 
+data_year<-airdata %>% group_by(Year=as.factor(airdata$Year)) %>% summarise(Fatalities=sum(Fatalities), Aboard=sum(Aboard))
+
+# Count the number of accidents for each year 
+data_year$Crash_Count<-summary(as.factor(airdata$Year))
+
+# Plot Fatalities vs Year 
+ggplot(data_year, aes(Year,log(Fatalities), group=1))+geom_line(linetype=2, colour="Black")+geom_point(colour="blue")+ xlab('Year')+ylab('log(Number of Fatalities)')+scale_x_discrete(breaks=seq(1908,2009,10))
+
+# Ratio of Fatalities/Aboard 
+data_year$rfa<-data_year$Fatalities/data_year$Aboard
+
+# Ratio of Fatalities per Crash 
+data_year$rfc<-data_year$Fatalities/data_year$Crash_Count
+
+# Plot 
+# Fatality Trends Per Year 
+ggplot(data_year, aes(data_year$Year, data_year$rfa))+geom_point(colour="Red")+geom_line()
+# Probability of Death if a Crash happens per Year 
+ggplot(data_year, aes(Year,rfa, group=1))+geom_line(linetype=2, colour="Black")+geom_point(colour="blue")+ xlab('Year')+ylab('Probability of Fatality or Death')+scale_x_discrete(breaks=seq(1908,2009,10))
+
+# Grouping by Aircraft Type
+data_type<-airdata %>% group_by(Type=as.factor(airdata$Type)) %>% summarise(Fatalities=sum(Fatalities), Aboard=sum(Aboard), NC=length(Type))
+data_type$risk<-data_type$Fatalities/data_type$NC
+data_type$ratio<-data_type$Fatalities/data_type$Aboard
+
+
+# Top 20 Risky aircrafts 
+data_type<-data_type[order(-data_type$risk,-data_type$ratio),]
+ggplot(data_type[1:20,], aes(x=reorder(Type, risk), y=ratio), fill=ratio)+geom_bar(stat="identity")
+
+
+# Grouping by Operator
+data_operator<- airdata %>% group_by(as.factor(airdata$Operator))%>% summarise(Fatalities=sum(Fatalities))
+
+# Converting Time 
+airdata$Timee<-as.POSIXct(airdata$Time, format="%H:%M")
+
+# Extracting Time
+airdata$Timee<-format(airdata$Timee, format="%H:%M")
+
+# Grouping by Time 
+data_time<-airdata %>% group_by(as.factor(airdata$Timee)) %>% summarise(Fatalities=sum(Fatalities))
